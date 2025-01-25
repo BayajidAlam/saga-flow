@@ -30,6 +30,16 @@ services:
     networks:
       - rabbitmq_network
 
+  inventory-service:
+    build:
+      context: ./inventory-service
+    ports:
+      - "3001:3000"
+    depends_on:
+      - rabbitmq
+    networks:
+      - rabbitmq_network
+
 volumes:
   rabbitmq_data:
 
