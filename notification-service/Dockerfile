@@ -19,8 +19,5 @@ COPY --from=build /app /app
 # Run as a non-root user for security
 USER node
 
-# Expose the service port
-EXPOSE 3000
-
 # Command to run the service
 CMD ["node", "src/index.js"]
