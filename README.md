@@ -2,9 +2,9 @@
 
 # SagaFlow - A Microservices Choreography with RabbitMQ
 
-This project demonstrates a **choreography-based Saga pattern** using **RabbitMQ** for event-driven communication between microservices. The system consists of four independent services: **Order Service**, **Inventory Service**, **Payment Service** and **Notification Service**. Each service performs its part of the workflow and emits events to trigger the next steps.
+This project demonstrates a **choreography-based Saga pattern** using **RabbitMQ** for event-driven communication between microservices. The system consists of four independent services: **Order Service**, **Inventory Service**, **Payment Service**, and **Notification Service**. Each service performs its part of the workflow and emits events to trigger the next steps.
 
-- [Services Overview](#service-overview)
+- [Services Overview](#services-overview)
 - [Event Flow](#event-flow)
 - [Prerequisites](#prerequisites)
 - [Setup and Running the System](#setup-and-running-the-system)
@@ -27,14 +27,13 @@ This project demonstrates a **choreography-based Saga pattern** using **RabbitMQ
 - **Events:**
   - Publishes: `InventoryUpdated`, `InventoryUpdateFailed`
   - Listens for: `OrderCreated`, `PaymentFailed`.
-
+    
 ### **3. Payment Service**
 - **Responsibility:** Listens for `OrderCreated` events, processes payments, and publishes `PaymentProcessed` or `PaymentFailed` events.
 - **Events:**
   - Publishes: `PaymentProcessed`, `PaymentFailed`
   - Listens for: `OrderCreated`.
 
----
 
 ### **4. Notification Service**
 - **Responsibility:** Listens for `InventoryUpdated`, `PaymentProcessed`, and `OrderFailed` events and sends notifications (e.g., logs to the console).
@@ -73,9 +72,8 @@ This project demonstrates a **choreography-based Saga pattern** using **RabbitMQ
 
 ## **Prerequisites**
 
-- **Docker**: Ensure Docker and Docker Compose are installed on your system.
-- **Node.js**: Each service is built using Node.js. Ensure Node.js is installed if you want to run the services locally without Docker.
-
+- **Docker**: Ensure Docker and Docker Compose are installed.
+- **Node.js**: Each service is built using Node.js. Install Node.js if running services locally without Docker.
 ---
 
 ## **Setup and Running the System**
@@ -106,12 +104,12 @@ This will start:
 ###  1. Place an Order
  Send a POST request to the Order Service to create a new order:
  ```
- curl -X POST http://localhost:3000/orders -H "Content-Type: application/json" -d '{
+curl -X POST http://localhost:3000/orders -H "Content-Type: application/json" -d '{
   "id": "1",
   "userId": "123",
   "productId": "456",
   "quantity": 2
-}
+}'
 ```
 
 ## 2. Check Logs
@@ -132,32 +130,37 @@ This will start:
 ## Project Structure
 
 ```plaintext
-microservices-choreography/
 ├── order-service/
-│   ├── index.js
+│   ├── src/index.js
 │   ├── Dockerfile
 │   └── package.json
 ├── inventory-service/
-│   ├── index.js
+│   ├── src/index.js
 │   ├── Dockerfile
 │   └── package.json
 ├── notification-service/
-│   ├── index.js
+│   ├── src/index.js
 │   ├── Dockerfile
 │   └── package.json
 ├── payment-service/
-│   ├── index.js
+│   ├── src/index.js
 │   ├── Dockerfile
 │   └── package.json
 ├── docker-compose.yml
+├── Makefile 
 └── README.md
 ```
 
-## Contributing
+## **Contributing**
 
-Feel free to contribute to this project by opening issues or submitting pull requests.
+Contributions are welcome! If you'd like to contribute, please follow these steps:
+1. Fork the repository.
+2. Create a new branch for your feature or bugfix.
+3. Commit your changes with clear and descriptive messages.
+4. Submit a pull request.
 
-## License
+For major changes, please open an issue first to discuss the proposed changes.
+
+## **License**
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
