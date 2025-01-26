@@ -3,6 +3,8 @@ const amqp = require('amqplib');
 const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://admin:admin@rabbitmq';
 const ORDER_EXCHANGE = 'order_exchange';
 const PAYMENT_EXCHANGE = 'payment_exchange';
+const PAYMENT_FAILED_EXCHANGE = 'payment_failed_exchange';
+const INVENTORY_REVERTED_EXCHANGE = 'inventory_reverted_exchange';
 
 let rabbitConnection, rabbitChannel;
 
@@ -11,14 +13,23 @@ async function connectToRabbitMQ(retries = 5) {
     try {
       rabbitConnection = await amqp.connect(RABBITMQ_URL);
       rabbitChannel = await rabbitConnection.createChannel();
+
+      // Assert exchanges
       await rabbitChannel.assertExchange(ORDER_EXCHANGE, 'fanout', { durable: false });
       await rabbitChannel.assertExchange(PAYMENT_EXCHANGE, 'fanout', { durable: false });
+      await rabbitChannel.assertExchange(PAYMENT_FAILED_EXCHANGE, 'fanout', { durable: false });
+      await rabbitChannel.assertExchange(INVENTORY_REVERTED_EXCHANGE, 'fanout', { durable: false });
 
-      const queue = await rabbitChannel.assertQueue('', { exclusive: true });
-      rabbitChannel.bindQueue(queue.queue, ORDER_EXCHANGE, '');
+      // Create and bind queue for OrderCreated events
+      const orderQueue = await rabbitChannel.assertQueue('', { exclusive: true });
+      rabbitChannel.bindQueue(orderQueue.queue, ORDER_EXCHANGE, '');
+
+      // Create and bind queue for InventoryReverted events
+      const inventoryRevertedQueue = await rabbitChannel.assertQueue('', { exclusive: true });
+      rabbitChannel.bindQueue(inventoryRevertedQueue.queue, INVENTORY_REVERTED_EXCHANGE, '');
 
       console.log('Payment Service connected to RabbitMQ');
-      return queue;
+      return { orderQueue, inventoryRevertedQueue };
     } catch (error) {
       retries -= 1;
       console.error(`Failed to connect to RabbitMQ. Retries left: ${retries}`, error);
@@ -32,19 +43,42 @@ async function connectToRabbitMQ(retries = 5) {
 }
 
 async function listenForOrderCreated() {
-  const queue = await connectToRabbitMQ();
+  const { orderQueue, inventoryRevertedQueue } = await connectToRabbitMQ();
 
-  rabbitChannel.consume(queue.queue, async (msg) => {
+  // Listen for OrderCreated events
+  rabbitChannel.consume(orderQueue.queue, async (msg) => {
     const orderCreatedEvent = JSON.parse(msg.content.toString());
     console.log('OrderCreated event received:', orderCreatedEvent);
 
-    // Simulate payment processing
-    await processPayment(orderCreatedEvent.orderId);
+    try {
+      // Simulate payment processing
+      await processPayment(orderCreatedEvent.orderId);
 
-    // Publish PaymentProcessed event
-    const paymentProcessedEvent = { orderId: orderCreatedEvent.orderId };
-    rabbitChannel.publish(PAYMENT_EXCHANGE, '', Buffer.from(JSON.stringify(paymentProcessedEvent)));
-    console.log('PaymentProcessed event published:', paymentProcessedEvent);
+      // Publish PaymentProcessed event
+      const paymentProcessedEvent = { orderId: orderCreatedEvent.orderId };
+      rabbitChannel.publish(PAYMENT_EXCHANGE, '', Buffer.from(JSON.stringify(paymentProcessedEvent)));
+      console.log('PaymentProcessed event published:', paymentProcessedEvent);
+
+      rabbitChannel.ack(msg);
+    } catch (error) {
+      console.error('Failed to process payment:', error);
+
+      // Publish PaymentFailed event
+      const paymentFailedEvent = { orderId: orderCreatedEvent.orderId };
+      rabbitChannel.publish(PAYMENT_FAILED_EXCHANGE, '', Buffer.from(JSON.stringify(paymentFailedEvent)));
+      console.log('PaymentFailed event published:', paymentFailedEvent);
+
+      rabbitChannel.ack(msg);
+    }
+  });
+
+  // Listen for InventoryReverted events
+  rabbitChannel.consume(inventoryRevertedQueue.queue, async (msg) => {
+    const inventoryRevertedEvent = JSON.parse(msg.content.toString());
+    console.log('InventoryReverted event received:', inventoryRevertedEvent);
+
+    // Handle inventory reverted event (e.g., log or take further action)
+    console.log(`Inventory reverted for order ID: ${inventoryRevertedEvent.orderId}`);
 
     rabbitChannel.ack(msg);
   });
@@ -52,6 +86,9 @@ async function listenForOrderCreated() {
 
 async function processPayment(orderId) {
   console.log(`Processing payment for order ID: ${orderId}`);
+  // Simulate payment processing logic
+  // Throw an error to simulate payment failure
+  // throw new Error('Payment processing failed');
 }
 
 listenForOrderCreated().catch((error) => {

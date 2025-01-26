@@ -1,68 +1,76 @@
 const amqp = require('amqplib');
 
 const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://admin:admin@rabbitmq';
+
 const ORDER_EXCHANGE = 'order_exchange';
 const INVENTORY_EXCHANGE = 'inventory_exchange';
+const INVENTORY_FAILED_EXCHANGE = 'inventory_failed_exchange';
+const PAYMENT_FAILED_EXCHANGE = 'payment_failed_exchange';
 
-let rabbitConnection, rabbitChannel;
+let rabbitChannel;
 
-async function connectToRabbitMQ(retries = 5) {
-  while (retries > 0) {
-    try {
-      rabbitConnection = await amqp.connect(RABBITMQ_URL);
-      rabbitChannel = await rabbitConnection.createChannel();
-      await rabbitChannel.assertExchange(ORDER_EXCHANGE, 'fanout', { durable: false });
-      await rabbitChannel.assertExchange(INVENTORY_EXCHANGE, 'fanout', { durable: false });
+async function connectToRabbitMQ() {
+  const connection = await amqp.connect(RABBITMQ_URL);
+  rabbitChannel = await connection.createChannel();
 
-      const queue = await rabbitChannel.assertQueue('', { exclusive: true });
-      rabbitChannel.bindQueue(queue.queue, ORDER_EXCHANGE, '');
+  await rabbitChannel.assertExchange(ORDER_EXCHANGE, 'fanout', { durable: false });
+  await rabbitChannel.assertExchange(INVENTORY_EXCHANGE, 'fanout', { durable: false });
+  await rabbitChannel.assertExchange(INVENTORY_FAILED_EXCHANGE, 'fanout', { durable: false });
+  await rabbitChannel.assertExchange(PAYMENT_FAILED_EXCHANGE, 'fanout', { durable: false });
 
-      console.log('Inventory Service connected to RabbitMQ');
-      return queue;
-    } catch (error) {
-      retries -= 1;
-      console.error(`Failed to connect to RabbitMQ. Retries left: ${retries}`, error);
-      if (retries === 0) {
-        console.error('Max retries reached. Exiting...');
-        process.exit(1);
-      }
-      await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait 5 seconds before retrying
-    }
-  }
-}
+  const orderQueue = await rabbitChannel.assertQueue('', { exclusive: true });
+  const paymentFailedQueue = await rabbitChannel.assertQueue('', { exclusive: true });
 
-async function listenForOrderCreated() {
-  const queue = await connectToRabbitMQ();
+  rabbitChannel.bindQueue(orderQueue.queue, ORDER_EXCHANGE, '');
+  rabbitChannel.bindQueue(paymentFailedQueue.queue, PAYMENT_FAILED_EXCHANGE, '');
 
-  rabbitChannel.consume(queue.queue, async (msg) => {
+  console.log('Inventory Service connected to RabbitMQ');
+
+  // Listen for OrderCreated events
+  rabbitChannel.consume(orderQueue.queue, async (msg) => {
     const orderCreatedEvent = JSON.parse(msg.content.toString());
     console.log('OrderCreated event received:', orderCreatedEvent);
 
-    // Simulate inventory update
-    await updateInventory(orderCreatedEvent.orderId);
+    try {
+      await updateInventory(orderCreatedEvent.orderId);
 
-    // Publish InventoryUpdated event
-    const inventoryUpdatedEvent = { orderId: orderCreatedEvent.orderId };
-    rabbitChannel.publish(INVENTORY_EXCHANGE, '', Buffer.from(JSON.stringify(inventoryUpdatedEvent)));
-    console.log('InventoryUpdated event published:', inventoryUpdatedEvent);
+      const inventoryUpdatedEvent = { orderId: orderCreatedEvent.orderId };
+      rabbitChannel.publish(INVENTORY_EXCHANGE, '', Buffer.from(JSON.stringify(inventoryUpdatedEvent)));
+      console.log('InventoryUpdated event published:', inventoryUpdatedEvent);
 
+      rabbitChannel.ack(msg);
+    } catch (error) {
+      console.error('Failed to update inventory:', error);
+
+      const inventoryUpdateFailedEvent = { orderId: orderCreatedEvent.orderId };
+      rabbitChannel.publish(INVENTORY_FAILED_EXCHANGE, '', Buffer.from(JSON.stringify(inventoryUpdateFailedEvent)));
+      console.log('InventoryUpdateFailed event published:', inventoryUpdateFailedEvent);
+
+      rabbitChannel.ack(msg);
+    }
+  });
+
+  // Listen for PaymentFailed events to revert inventory
+  rabbitChannel.consume(paymentFailedQueue.queue, async (msg) => {
+    const paymentFailedEvent = JSON.parse(msg.content.toString());
+    console.log('PaymentFailed event received:', paymentFailedEvent);
+
+    await revertInventory(paymentFailedEvent.orderId);
     rabbitChannel.ack(msg);
   });
 }
 
 async function updateInventory(orderId) {
   console.log(`Updating inventory for order ID: ${orderId}`);
+  // Simulate inventory update logic
 }
 
-listenForOrderCreated().catch((error) => {
+async function revertInventory(orderId) {
+  console.log(`Reverting inventory for order ID: ${orderId}`);
+  // Simulate inventory revert logic
+}
+
+connectToRabbitMQ().catch((error) => {
   console.error('Error starting Inventory Service:', error);
   process.exit(1);
-});
-
-// Graceful shutdown
-process.on('SIGINT', async () => {
-  if (rabbitChannel) await rabbitChannel.close();
-  if (rabbitConnection) await rabbitConnection.close();
-  console.log('Inventory Service shutting down gracefully');
-  process.exit(0);
 });
