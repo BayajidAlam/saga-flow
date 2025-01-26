@@ -20,9 +20,11 @@ down:
 # Restart all services
 restart: down up
 
+# View logs for all services
+logs:
+	docker-compose -f $(COMPOSE_FILE) logs -f
 
 # Clean up Docker resources (containers, networks, volumes)
 clean:
 	docker-compose -f $(COMPOSE_FILE) down --remove-orphans --volumes
 	docker system prune -f
-

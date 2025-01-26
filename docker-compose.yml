@@ -5,11 +5,16 @@ services:
     image: rabbitmq:management
     container_name: rabbit-mq
     ports:
-      - "5672:5672"  # RabbitMQ AMQP port
-      - "15672:15672"  # RabbitMQ Management UI port
+      - "5672:5672"
+      - "15672:15672"
     environment:
       RABBITMQ_DEFAULT_USER: admin
       RABBITMQ_DEFAULT_PASS: admin
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
@@ -19,11 +24,12 @@ services:
     build:
       context: ./order-service
     ports:
-      - "3000:3000"  # Expose Order Service to the host
+      - "3000:3000"
     environment:
       RABBITMQ_URL: amqp://admin:admin@rabbitmq
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
     networks:
       - rabbitmq_network
 
@@ -33,7 +39,8 @@ services:
     environment:
       RABBITMQ_URL: amqp://admin:admin@rabbitmq
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
     networks:
       - rabbitmq_network
 
@@ -43,7 +50,8 @@ services:
     environment:
       RABBITMQ_URL: amqp://admin:admin@rabbitmq
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
     networks:
       - rabbitmq_network
 
@@ -53,7 +61,8 @@ services:
     environment:
       RABBITMQ_URL: amqp://admin:admin@rabbitmq
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
     networks:
       - rabbitmq_network
 

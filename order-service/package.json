@@ -1,5 +1,9 @@
 {
   "name": "order-service",
+  "author": {
+    "name": "Bayajid Alam Joyel",
+    "url": "https://github.com/BayajidAlam"
+  },
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -12,6 +16,5 @@
     "express": "^4.17.1"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC"
+  "license": "MIT"
 }

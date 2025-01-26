@@ -4,7 +4,6 @@ const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://admin:admin@rabbitmq';
 const ORDER_EXCHANGE = 'order_exchange';
 const PAYMENT_EXCHANGE = 'payment_exchange';
 const PAYMENT_FAILED_EXCHANGE = 'payment_failed_exchange';
-const INVENTORY_REVERTED_EXCHANGE = 'inventory_reverted_exchange';
 
 let rabbitConnection, rabbitChannel;
 
@@ -18,18 +17,13 @@ async function connectToRabbitMQ(retries = 5) {
       await rabbitChannel.assertExchange(ORDER_EXCHANGE, 'fanout', { durable: false });
       await rabbitChannel.assertExchange(PAYMENT_EXCHANGE, 'fanout', { durable: false });
       await rabbitChannel.assertExchange(PAYMENT_FAILED_EXCHANGE, 'fanout', { durable: false });
-      await rabbitChannel.assertExchange(INVENTORY_REVERTED_EXCHANGE, 'fanout', { durable: false });
 
       // Create and bind queue for OrderCreated events
       const orderQueue = await rabbitChannel.assertQueue('', { exclusive: true });
       rabbitChannel.bindQueue(orderQueue.queue, ORDER_EXCHANGE, '');
 
-      // Create and bind queue for InventoryReverted events
-      const inventoryRevertedQueue = await rabbitChannel.assertQueue('', { exclusive: true });
-      rabbitChannel.bindQueue(inventoryRevertedQueue.queue, INVENTORY_REVERTED_EXCHANGE, '');
-
       console.log('Payment Service connected to RabbitMQ');
-      return { orderQueue, inventoryRevertedQueue };
+      return orderQueue;
     } catch (error) {
       retries -= 1;
       console.error(`Failed to connect to RabbitMQ. Retries left: ${retries}`, error);
@@ -43,7 +37,7 @@ async function connectToRabbitMQ(retries = 5) {
 }
 
 async function listenForOrderCreated() {
-  const { orderQueue, inventoryRevertedQueue } = await connectToRabbitMQ();
+  const orderQueue = await connectToRabbitMQ();
 
   // Listen for OrderCreated events
   rabbitChannel.consume(orderQueue.queue, async (msg) => {
@@ -70,17 +64,6 @@ async function listenForOrderCreated() {
 
       rabbitChannel.ack(msg);
     }
-  });
-
-  // Listen for InventoryReverted events
-  rabbitChannel.consume(inventoryRevertedQueue.queue, async (msg) => {
-    const inventoryRevertedEvent = JSON.parse(msg.content.toString());
-    console.log('InventoryReverted event received:', inventoryRevertedEvent);
-
-    // Handle inventory reverted event (e.g., log or take further action)
-    console.log(`Inventory reverted for order ID: ${inventoryRevertedEvent.orderId}`);
-
-    rabbitChannel.ack(msg);
   });
 }
 

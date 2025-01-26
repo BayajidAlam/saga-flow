@@ -1,5 +1,9 @@
 {
-  "name": "inventory-serivice",
+  "name": "inventory-service",
+  "author": {
+    "name": "Bayajid Alam Joyel",
+    "url": "https://github.com/BayajidAlam"
+  },
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
@@ -10,7 +14,6 @@
     "express": "^4.17.1"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "description": ""
 }
