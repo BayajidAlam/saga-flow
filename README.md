@@ -153,14 +153,16 @@ curl -X POST http://localhost:3000/orders -H "Content-Type: application/json" -d
 
 ## **Contributing**
 
-Contributions are welcome! If you'd like to contribute, please follow these steps:
-1. Fork the repository.
-2. Create a new branch for your feature or bugfix.
-3. Commit your changes with clear and descriptive messages.
-4. Submit a pull request.
+We welcome contributions from the community! If you'd like to contribute, please follow the guidelines outlined in our [CONTRIBUTING.md](CONTRIBUTING.md) file. Here's a quick overview of the process:
 
-For major changes, please open an issue first to discuss the proposed changes.
+1. **Fork the repository** and clone it to your local machine.
+2. **Create a new branch** for your feature, bugfix, or improvement.
+3. **Commit your changes** with clear and descriptive messages.
+4. **Submit a pull request** with a detailed explanation of your changes.
 
+For **major changes**, please open an issue first to discuss your proposal with the maintainers. This ensures your work aligns with the project's goals and avoids duplication of effort.
+
+Thank you for your interest in contributing! We appreciate your support.
 ## **License**
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
